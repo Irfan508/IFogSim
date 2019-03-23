@@ -57,7 +57,7 @@ public class VRGameFog {
 		Log.printLine("Starting VRGame...");
 
 		try {
-			Log.disable();
+			//Log.disable();
 			int num_user = 1; // number of cloud users
 			Calendar calendar = Calendar.getInstance();
 			boolean trace_flag = false; // mean trace events

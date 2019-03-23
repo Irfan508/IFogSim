@@ -121,13 +121,25 @@ public class Controller extends SimEntity{
 	}
 	
 	private void printCostDetails(){
-		System.out.println("Cost of execution in cloud = "+getCloud().getTotalCost());
+		//System.out.println("Cost of execution in cloud = "+getCloud().getTotalCost());
+
+		//Added by Irfan
+		double TotalCost=0;
+		for(FogDevice dev : getFogDevices()) {
+			TotalCost+=dev.getTotalCost();
+			System.out.println("Cost of execution in "+dev.getName()+" = "+dev.getTotalCost());
+		}
+		System.out.println("*******Total cost of execution is: "+ TotalCost+"\n");
 	}
 	
+	//modified by Irfan - Calculate and display TotalPower also
 	private void printPowerDetails() {
+		double TotalPower=0;
 		for(FogDevice fogDevice : getFogDevices()){
 			System.out.println(fogDevice.getName() + " : Energy Consumed = "+fogDevice.getEnergyConsumption());
+			TotalPower+=fogDevice.getEnergyConsumption();
 		}
+		System.out.println("*******Total energy consumption is: "+TotalPower+"\n");
 	}
 
 	private String getStringForLoopId(int loopId){

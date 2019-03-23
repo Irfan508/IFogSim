@@ -789,6 +789,9 @@ public class FogDevice extends PowerDatacenter {
 	}
 	
 	protected void sendUpFreeLink(Tuple tuple){
+		//added by Irfan
+		System.out.println("Tuple type:"+tuple.getTupleType()+"\tCloudletFileSize of tuple:"+tuple.getCloudletFileSize()+"\tUpLinkBandWidth of Device:"+getUplinkBandwidth());
+		
 		double networkDelay = tuple.getCloudletFileSize()/getUplinkBandwidth();
 		setNorthLinkBusy(true);
 		send(getId(), networkDelay, FogEvents.UPDATE_NORTH_TUPLE_QUEUE);

@@ -52,6 +52,28 @@ public class Application {
 	}
 	
 	/**
+	 * Adds an application module to the application - Created by Irfan
+	 * @param moduleName
+	 * @param mips
+	 * @param ram
+	 * @param bw
+	 * @param size
+	 */
+	public void addAppModule(String moduleName, int mips,int ram, long bw, long size){
+//		int mips = 1000;
+//		long size = 10000;
+//		long bw = 1000;
+		String vmm = "Xen";
+		
+		AppModule module = new AppModule(FogUtils.generateEntityId(), moduleName, appId, userId, 
+				mips, ram, bw, size, vmm, new TupleScheduler(mips, 1), new HashMap<Pair<String, String>, SelectivityModel>());
+		
+		getModules().add(module);
+		
+	}
+	
+	
+	/**
 	 * Adds an application module to the application.
 	 * @param moduleName
 	 * @param ram
@@ -90,6 +112,7 @@ public class Application {
 	 * Adds a periodic edge to the application model.
 	 * @param source
 	 * @param destination
+	 * @param periodicity
 	 * @param tupleCpuLength
 	 * @param tupleNwLength
 	 * @param tupleType
