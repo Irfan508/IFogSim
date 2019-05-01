@@ -36,32 +36,32 @@ import org.fog.utils.TimeKeeper;
 import org.fog.utils.distribution.DeterministicDistribution;
 
 /**
- * Simulation setup for case study 2 - Intelligent Surveillance
- * @author Harshit Gupta
+ * Simulation setup for case study 3 - Taken from paper 16
+ * @author Mohammad Irfan
  *
  */
-public class DCNSFog {
+public class MyDCNSFog {
 	static List<FogDevice> fogDevices = new ArrayList<FogDevice>();
 	static List<Sensor> sensors = new ArrayList<Sensor>();
 	static List<Actuator> actuators = new ArrayList<Actuator>();
-	static int numOfAreas = 1;
-	static int numOfCamerasPerArea = 4;
+	static int numOfAreas = 4;
+	static int numOfCamerasPerArea = 2;		//no of devices
 	
 	private static boolean CLOUD = false;
 	
 	public static void main(String[] args) {
 
-		Log.printLine("Starting DCNS...");
+		Log.printLine("Starting MyDCNSFog...");
 
 		try {
-			Log.disable();
+			//Log.disable();
 			int num_user = 1; // number of cloud users
 			Calendar calendar = Calendar.getInstance();
 			boolean trace_flag = false; // mean trace events
 
 			CloudSim.init(num_user, calendar, trace_flag);
 
-			String appId = "dcns"; // identifier of the application
+			String appId = "MyDCNS"; // identifier of the application
 			
 			FogBroker broker = new FogBroker("broker");
 			
@@ -98,26 +98,25 @@ public class DCNSFog {
 
 			CloudSim.stopSimulation();
 
-			Log.printLine("VRGame finished!");
+			Log.printLine("MyDCNSFog finished!");
 		} catch (Exception e) {
 			e.printStackTrace();
 			Log.printLine("Unwanted errors happen");
 		}
 	}
 	
-
 	/**
 	 * Creates the fog devices in the physical topology of the simulation.
 	 * @param userId
 	 * @param appId
 	 */
 	private static void createFogDevices(int userId, String appId) {
-		FogDevice cloud = createFogDevice("cloud", 44800, 40000, 100, 10000, 0, 0.01, 16*103, 16*83.25);
+		FogDevice cloud = createFogDevice("cloud", 40000, 40960, 1000, 10000, 0, 10.0, 16*103, 16*83.25);
 		cloud.setParentId(-1);
 		fogDevices.add(cloud);
-		FogDevice proxy = createFogDevice("proxy-server", 2800, 4000, 10000, 10000, 1, 0.05, 107.339, 83.4333);
+		FogDevice proxy = createFogDevice("ISP_Gateway", 10000, 8192, 10000, 10000, 1, 5.0, 107.339, 83.4333);
 		proxy.setParentId(cloud.getId());
-		proxy.setUplinkLatency(100); // latency of connection between proxy server and cloud is 100 ms
+		proxy.setUplinkLatency(200); // latency of connection between ISP_GAteway and cloud is 200 ms
 		fogDevices.add(proxy);
 		for(int i=0;i<numOfAreas;i++){
 			addArea(i+"", userId, appId, proxy.getId());
@@ -125,13 +124,13 @@ public class DCNSFog {
 	}
 
 	private static FogDevice addArea(String id, int userId, String appId, int parentId){
-		FogDevice router = createFogDevice("d-"+id, 2800, 4000, 10000, 10000, 2, 0.08, 107.339, 83.4333);
+		FogDevice router = createFogDevice("Fog-"+id+"_Gateway", 8000, 6144, 10000, 10000, 2, 3.0, 107.339, 83.4333);
 		fogDevices.add(router);
-		router.setUplinkLatency(2); // latency of connection between router and proxy server is 2 ms
+		router.setUplinkLatency(25); // latency of connection between Fog_Gateway and ISP_Gateway is 25 ms
 		for(int i=0;i<numOfCamerasPerArea;i++){
 			String mobileId = id+"-"+i;
 			FogDevice camera = addCamera(mobileId, userId, appId, router.getId()); // adding a smart camera to the physical topology. Smart cameras have been modeled as fog devices as well.
-			camera.setUplinkLatency(2); // latency of connection between camera and router is 2 ms
+			camera.setUplinkLatency(5); // latency of connection between Fog_Gateway and Device is 5 ms
 			fogDevices.add(camera);
 		}
 		router.setParentId(parentId);
@@ -139,16 +138,16 @@ public class DCNSFog {
 	}
 	
 	private static FogDevice addCamera(String id, int userId, String appId, int parentId){
-		FogDevice camera = createFogDevice("m-"+id, 500, 1000, 10000, 10000, 3, 0.08, 87.53, 82.44);
+		FogDevice camera = createFogDevice("Device-"+id, 4000, 2048, 100, 250, 3, 1, 87.53, 82.44);
 		camera.setParentId(parentId);
 		Sensor sensor = new Sensor("s-"+id, "CAMERA", userId, appId, new DeterministicDistribution(5)); // inter-transmission time of camera (sensor) follows a deterministic distribution
 		sensors.add(sensor);
 		Actuator ptz = new Actuator("ptz-"+id, userId, appId, "PTZ_CONTROL");
 		actuators.add(ptz);
 		sensor.setGatewayDeviceId(camera.getId());
-		sensor.setLatency(1.0);  // latency of connection between camera (sensor) and the parent Smart Camera is 1 ms
+		sensor.setLatency(2.0);  // latency of connection between camera (sensor) and the parent Smart Camera is 2 ms
 		ptz.setGatewayDeviceId(camera.getId());
-		ptz.setLatency(1.0);  // latency of connection between PTZ Control and the parent Smart Camera is 1 ms
+		ptz.setLatency(3.0);  // latency of connection between PTZ Control and the parent Smart Camera is 3 ms
 		return camera;
 	}
 	
@@ -243,7 +242,7 @@ public class DCNSFog {
 		application.addAppEdge("motion_detector", "object_detector", 2000, 2000, "MOTION_VIDEO_STREAM", Tuple.UP, AppEdge.MODULE); // adding edge from Motion Detector to Object Detector module carrying tuples of type MOTION_VIDEO_STREAM
 		application.addAppEdge("object_detector", "user_interface", 500, 2000, "DETECTED_OBJECT", Tuple.UP, AppEdge.MODULE); // adding edge from Object Detector to User Interface module carrying tuples of type DETECTED_OBJECT
 		application.addAppEdge("object_detector", "object_tracker", 1000, 100, "OBJECT_LOCATION", Tuple.UP, AppEdge.MODULE); // adding edge from Object Detector to Object Tracker module carrying tuples of type OBJECT_LOCATION
-		application.addAppEdge("object_tracker", "PTZ_CONTROL", 100, 28, 100, "PTZ_PARAMS", Tuple.DOWN, AppEdge.ACTUATOR); // adding edge from Object Tracker to PTZ CONTROL (actuator) carrying tuples of type PTZ_PARAMS
+		application.addAppEdge("object_tracker", "PTZ_CONTROL", 100, 100, 100, "PTZ_PARAMS", Tuple.DOWN, AppEdge.ACTUATOR); // adding edge from Object Tracker to PTZ CONTROL (actuator) carrying tuples of type PTZ_PARAMS
 		
 		/*
 		 * Defining the input-output relationships (represented by selectivity) of the application modules. 

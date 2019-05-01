@@ -22,14 +22,14 @@ public class ModulePlacementEdgewards extends ModulePlacement{
 	protected ModuleMapping moduleMapping;
 	protected List<Sensor> sensors;
 	protected List<Actuator> actuators;
-	protected Map<Integer, Double> currentCpuLoad;
+	protected Map<Integer, Double> currentCpuLoad;		//<deviceId,0.0>
 	
 	/**
 	 * Stores the current mapping of application modules to fog devices 
 	 */
-	protected Map<Integer, List<String>> currentModuleMap;
-	protected Map<Integer, Map<String, Double>> currentModuleLoadMap;
-	protected Map<Integer, Map<String, Integer>> currentModuleInstanceNum;
+	protected Map<Integer, List<String>> currentModuleMap;		//<deviceId,arraylist<string> >
+	protected Map<Integer, Map<String, Double>> currentModuleLoadMap;		//<deviceId,hashMap<String,Double>>
+	protected Map<Integer, Map<String, Integer>> currentModuleInstanceNum;	//<deviceId,<hashMap<String,Integer>>
 	
 	public ModulePlacementEdgewards(List<FogDevice> fogDevices, List<Sensor> sensors, List<Actuator> actuators, 
 			Application application, ModuleMapping moduleMapping){
@@ -57,9 +57,9 @@ public class ModulePlacementEdgewards extends ModulePlacement{
 	
 	@Override
 	protected void mapModules() {
-		
-		for(String deviceName : getModuleMapping().getModuleMapping().keySet()){
-			for(String moduleName : getModuleMapping().getModuleMapping().get(deviceName)){
+		//copies contents of moduleMapping into currentModuleMap,currentModuleLoadMap and currentModuleInstanceNum
+		for(String deviceName : getModuleMapping().getModuleMapping().keySet()){		//for each device in moduleMapping
+			for(String moduleName : getModuleMapping().getModuleMapping().get(deviceName)){		//returns all the modules mapped to the "deviceName"
 				int deviceId = CloudSim.getEntityId(deviceName);
 				getCurrentModuleMap().get(deviceId).add(moduleName);
 				getCurrentModuleLoadMap().get(deviceId).put(moduleName, 0.0);
@@ -67,7 +67,7 @@ public class ModulePlacementEdgewards extends ModulePlacement{
 			}
 		}
 		
-		List<List<Integer>> leafToRootPaths = getLeafToRootPaths();
+		List<List<Integer>> leafToRootPaths = getLeafToRootPaths();		//stores path from leaf fog devices to cloud(root)
 		
 		for(List<Integer> path : leafToRootPaths){
 			placeModulesInPath(path);
@@ -91,7 +91,7 @@ public class ModulePlacementEdgewards extends ModulePlacement{
 		List<String> modulesToPlace = new ArrayList<String>();
 		for(AppModule module : app.getModules()){
 			if(!placedModules.contains(module.getName()))
-				modulesToPlace_1.add(module.getName());
+				modulesToPlace_1.add(module.getName());		//modules which are yet to be placed
 		}
 		/*
 		 * Filtering based on whether modules (to be placed) lower in physical topology are already placed
@@ -103,7 +103,7 @@ public class ModulePlacementEdgewards extends ModulePlacement{
 				//CHECK IF OUTGOING DOWN EDGES ARE PLACED
 				if(edge.getSource().equals(moduleName) && edge.getDirection()==Tuple.DOWN && !placedModules.contains(edge.getDestination()))
 					toBePlaced = false;
-				//CHECK IF INCOMING UP EDGES ARE PLACED
+				//CHECK IF INCOMING UP EDGES ARE PLACED  //edgeDestination=moduleName & edgeDirection=Up & edgeSource!=placedModules
 				if(edge.getDestination().equals(moduleName) && edge.getDirection()==Tuple.UP && !placedModules.contains(edge.getSource()))
 					toBePlaced = false;
 			}
@@ -122,24 +122,26 @@ public class ModulePlacementEdgewards extends ModulePlacement{
 		return 0;
 	}
 	
+	//calculate rates for each edge and store in <appEdgetoRate>
 	private void placeModulesInPath(List<Integer> path) {
 		if(path.size()==0)return;
-		List<String> placedModules = new ArrayList<String>();
-		Map<AppEdge, Double> appEdgeToRate = new HashMap<AppEdge, Double>();
+		List<String> placedModules = new ArrayList<String>();		//modules which have been already placed
+		Map<AppEdge, Double> appEdgeToRate = new HashMap<AppEdge, Double>();	//add periodic edges,sensor edges and their rate
 		
 		/**
 		 * Periodic edges have a fixed periodicity of tuples, so setting the tuple rate beforehand
 		 */
-		for(AppEdge edge : getApplication().getEdges()){
+		for(AppEdge edge : getApplication().getEdges()){		//calculate rate of periodic edges
 			if(edge.isPeriodic()){
 				appEdgeToRate.put(edge, 1/edge.getPeriodicity());
 			}
 		}
 		
-		for(Integer deviceId : path){
+		//add all sensors and actuators associated to "path" in the placedModules
+		for(Integer deviceId : path){		//for each device in the path
 			FogDevice device = getFogDeviceById(deviceId);
-			Map<String, Integer> sensorsAssociated = getAssociatedSensors(device);
-			Map<String, Integer> actuatorsAssociated = getAssociatedActuators(device);
+			Map<String, Integer> sensorsAssociated = getAssociatedSensors(device);			//<sensorsAssociated,count>
+			Map<String, Integer> actuatorsAssociated = getAssociatedActuators(device);		//<actuatorsAssociated,count>
 			placedModules.addAll(sensorsAssociated.keySet()); // ADDING ALL SENSORS TO PLACED LIST
 			placedModules.addAll(actuatorsAssociated.keySet()); // ADDING ALL ACTUATORS TO PLACED LIST
 			
@@ -149,11 +151,12 @@ public class ModulePlacementEdgewards extends ModulePlacement{
 			for(String sensor : sensorsAssociated.keySet()){
 				for(AppEdge edge : getApplication().getEdges()){
 					if(edge.getSource().equals(sensor)){
-						appEdgeToRate.put(edge, sensorsAssociated.get(sensor)*getRateOfSensor(sensor));
+						appEdgeToRate.put(edge, sensorsAssociated.get(sensor)*getRateOfSensor(sensor));   //put(edge,count*(1/deterministicRate))
 					}
 				}
 			}
-						
+				
+			//update the edge rates for all edges possible
 			/*
 			 * Updating the AppEdge rates for the entire application based on knowledge so far
 			 */
@@ -164,10 +167,10 @@ public class ModulePlacementEdgewards extends ModulePlacement{
 				for(AppEdge edge : rateMap.keySet()){
 					AppModule destModule = getApplication().getModuleByName(edge.getDestination());
 					if(destModule == null)continue;
-					Map<Pair<String, String>, SelectivityModel> map = destModule.getSelectivityMap();
+					Map<Pair<String, String>, SelectivityModel> map = destModule.getSelectivityMap();	//<<sourceEdge,DestinationEdge>,SelectivityModel>
 					for(Pair<String, String> pair : map.keySet()){
 						if(pair.getFirst().equals(edge.getTupleType())){
-							double outputRate = appEdgeToRate.get(edge)*map.get(pair).getMeanRate(); // getting mean rate from SelectivityModel
+							double outputRate = appEdgeToRate.get(edge)*map.get(pair).getMeanRate(); // getting mean rate from SelectivityModel	//edge rate*FS (0.02*1)
 							AppEdge outputEdge = getApplication().getEdgeMap().get(pair.getSecond());
 							if(!appEdgeToRate.containsKey(outputEdge) || appEdgeToRate.get(outputEdge)!=outputRate){
 								// if some new information is available
@@ -182,11 +185,13 @@ public class ModulePlacementEdgewards extends ModulePlacement{
 			/*
 			 * Getting the list of modules ready to be placed on current device on path
 			 */
-			List<String> modulesToPlace = getModulesToPlace(placedModules);
+			//modulesToPlace=should not be earlier placed, should not have outgoing DOWN edge and should not have incoming UP edge 
+			//from remaining modules
+			List<String> modulesToPlace = getModulesToPlace(placedModules);		//complex logic to select the modules which can be placed
 			
 			while(modulesToPlace.size() > 0){ // Loop runs until all modules in modulesToPlace are deployed in the path
 				String moduleName = modulesToPlace.get(0);
-				double totalCpuLoad = 0;
+				double totalCpuLoad = 0;		//rate*CPU_length
 				
 				//IF MODULE IS ALREADY PLACED UPSTREAM, THEN UPDATE THE EXISTING MODULE
 				int upsteamDeviceId = isPlacedUpstream(moduleName, path);
@@ -202,6 +207,7 @@ public class ModulePlacementEdgewards extends ModulePlacement{
 								totalCpuLoad += rate*edge.getTupleCpuLength();
 							}
 						}
+						//check if totalCpuLoad(new load)+previous load on device exceeds device capacity 
 						if(totalCpuLoad + getCurrentCpuLoad().get(deviceId) > device.getHost().getTotalMips()){
 							Logger.debug("ModulePlacementEdgeward", "Need to shift module "+moduleName+" upstream from device " + device.getName());
 							List<String> _placedOperators = shiftModuleNorth(moduleName, totalCpuLoad, deviceId, modulesToPlace);
@@ -241,6 +247,7 @@ public class ModulePlacementEdgewards extends ModulePlacement{
 						getCurrentModuleLoadMap().get(device.getId()).put(moduleName, totalCpuLoad);
 						
 						int max = 1;
+						//check if the edge is between moduleName and actuator or between moduleName and sensor
 						for(AppEdge edge : getApplication().getEdges()){
 							if(edge.getSource().equals(moduleName) && actuatorsAssociated.containsKey(edge.getDestination()))
 								max = Math.max(actuatorsAssociated.get(edge.getDestination()), max);
@@ -396,6 +403,7 @@ public class ModulePlacementEdgewards extends ModulePlacement{
 		return upstreamModules;	
 	}
 	
+	//returns deviceId of the device in path on which OperatorName (moduleName) has been placed
 	private int isPlacedUpstream(String operatorName, List<Integer> path) {
 		for(int deviceId : path){
 			if(currentModuleMap.containsKey(deviceId) && currentModuleMap.get(deviceId).contains(operatorName))

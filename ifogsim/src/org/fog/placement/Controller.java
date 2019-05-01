@@ -4,6 +4,7 @@ import java.util.Calendar;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Scanner;
 
 import org.cloudbus.cloudsim.core.CloudSim;
 import org.cloudbus.cloudsim.core.SimEntity;
@@ -15,6 +16,7 @@ import org.fog.application.Application;
 import org.fog.entities.Actuator;
 import org.fog.entities.FogDevice;
 import org.fog.entities.Sensor;
+import org.fog.test.perfeval.DCNSFogTB;
 import org.fog.utils.Config;
 import org.fog.utils.FogEvents;
 import org.fog.utils.FogUtils;
@@ -24,7 +26,12 @@ import org.fog.utils.TimeKeeper;
 public class Controller extends SimEntity{
 	
 	public static boolean ONLY_CLOUD = false;
-		
+	
+	public static int count=0;
+	public static double [][]matrix=new double[4][4];
+	public static double TotalPower=0;
+	public static double TotalCost=0;
+
 	private List<FogDevice> fogDevices;
 	private List<Sensor> sensors;
 	private List<Actuator> actuators;
@@ -84,7 +91,60 @@ public class Controller extends SimEntity{
 			sendNow(dev.getId(), FogEvents.RESOURCE_MGMT);
 
 	}
-
+	
+	//created by Irfan
+	public void storeResults(int offset) {	//offset=0 for cloud and 1 for Fog
+		double time=0;
+//		System.out.println("inside storeResults()***************************************");
+		
+		for(Integer loopId : TimeKeeper.getInstance().getLoopIdToTupleIds().keySet()){
+			if(getStringForLoopId(loopId)==null) {
+				continue;
+			}
+			else {
+				time=time+TimeKeeper.getInstance().getLoopIdToCurrentAverage().get(loopId);		
+			}
+		}
+		
+		matrix[0][offset]=time;
+		matrix[1][offset]=TotalPower;
+		matrix[2][offset]=NetworkUsageMonitor.getNetworkUsage()/Config.MAX_SIMULATION_TIME;	
+		matrix[3][offset]=TotalCost;
+	
+		if(count==1)
+			calculateResults();
+	}
+	
+	//created by Irfan
+	public void calculateResults() {
+		double a,b,c,CloudResult,FogResult;		
+		int i=0,j=0;		
+		Scanner sc=new Scanner(System.in);
+		a=b=c=0.3333;		//default value of weights
+		do {
+			System.out.println("Enter the weights for alpha (time), beta (energy) and gamma (network consumption)\n");
+			a=sc.nextDouble();
+			b=sc.nextDouble();
+			c=sc.nextDouble();
+		}while((a+b+c)!=1);
+		
+		for(i=0;i<4;i++) {
+			j=2;
+			while(j<4) {
+				matrix[i][j]=matrix[i][j-2]/(matrix[i][0]+matrix[i][1]);
+				j++;
+			}
+		}		//all the percentages have been calculated
+		CloudResult=a*matrix[0][2]+b*matrix[1][2]+c*matrix[2][2];
+		FogResult=a*matrix[0][3]+b*matrix[1][3]+c*matrix[2][3];
+		if(CloudResult<FogResult) {
+			System.out.println("Cloud only provides better performance************************************");
+		}
+		else if(CloudResult>FogResult) {
+			System.out.println("Fog nodes provides better performance**********************************");
+		}
+	}
+	
 	@Override
 	public void processEvent(SimEvent ev) {
 		switch(ev.getTag()){
@@ -103,6 +163,43 @@ public class Controller extends SimEntity{
 			printPowerDetails();
 			printCostDetails();
 			printNetworkUsageDetails();
+			
+/* commented code is for tawseef project*/			
+			if(DCNSFogTB.CLOUD==true)
+				storeResults(0);
+			else if(DCNSFogTB.CLOUD==false)
+				storeResults(1);
+
+			Scanner sc=new Scanner(System.in);
+			if(DCNSFogTB.CLOUD==true &&count==0) {
+				count++;
+//				storeResults(0); 		//store results for cloud
+				System.out.println("\n*******************************************************");
+				System.out.print("Press \"1\" to execute Cloud-Fog configuration also\t");
+				int ch=sc.nextInt();
+				if(ch==1) {
+					DCNSFogTB.mainIrfan(false);
+//					storeResults(1); 		//store results for fog
+				}
+			}
+			else if(DCNSFogTB.CLOUD==false&&count==0) {
+				count++;
+//				storeResults(1); 			//store results for fog
+				System.out.println("\n*******************************************************");
+				System.out.print("Press \"1\" to execute Cloud only configuration also\t");
+				int ch=sc.nextInt();
+				if(ch==1) {
+					DCNSFogTB.mainIrfan(true);
+//					storeResults(0); 		//store results for cloud
+				}	
+			}
+			sc.close();
+			
+//			if(DCNSFogTB.CLOUD==false) {
+//				//application has been executed with cloud only config once
+//				DCNSFogTB.mainIrfan(true);
+//			}
+			System.out.println("Program execution completed");
 			System.exit(0);
 			break;
 			
@@ -124,17 +221,17 @@ public class Controller extends SimEntity{
 		//System.out.println("Cost of execution in cloud = "+getCloud().getTotalCost());
 
 		//Added by Irfan
-		double TotalCost=0;
-		for(FogDevice dev : getFogDevices()) {
-			TotalCost+=dev.getTotalCost();
-			System.out.println("Cost of execution in "+dev.getName()+" = "+dev.getTotalCost());
+		TotalCost=0;
+		for(FogDevice fogDevice : getFogDevices()) {
+			TotalCost+=fogDevice.getTotalCost();
+			System.out.println("Cost of execution in "+fogDevice.getName()+" = "+fogDevice.getTotalCost());
 		}
 		System.out.println("*******Total cost of execution is: "+ TotalCost+"\n");
 	}
 	
 	//modified by Irfan - Calculate and display TotalPower also
 	private void printPowerDetails() {
-		double TotalPower=0;
+		TotalPower=0;
 		for(FogDevice fogDevice : getFogDevices()){
 			System.out.println(fogDevice.getName() + " : Energy Consumed = "+fogDevice.getEnergyConsumption());
 			TotalPower+=fogDevice.getEnergyConsumption();
@@ -156,8 +253,8 @@ public class Controller extends SimEntity{
 		System.out.println("=========================================");
 		System.out.println("============== RESULTS ==================");
 		System.out.println("=========================================");
-		System.out.println("EXECUTION TIME : "+ (Calendar.getInstance().getTimeInMillis() - TimeKeeper.getInstance().getSimulationStartTime()));
-		System.out.println("=========================================");
+//		System.out.println("EXECUTION TIME : "+ (Calendar.getInstance().getTimeInMillis() - TimeKeeper.getInstance().getSimulationStartTime()));
+//		System.out.println("=========================================");
 		System.out.println("APPLICATION LOOP DELAYS");
 		System.out.println("=========================================");
 		for(Integer loopId : TimeKeeper.getInstance().getLoopIdToTupleIds().keySet()){
@@ -171,7 +268,12 @@ public class Controller extends SimEntity{
 				count += 1;
 			}
 			System.out.println(getStringForLoopId(loopId) + " ---> "+(average/count));*/
-			System.out.println(getStringForLoopId(loopId) + " ---> "+TimeKeeper.getInstance().getLoopIdToCurrentAverage().get(loopId));
+			if(getStringForLoopId(loopId)==null) {
+				continue;
+			}
+			else {
+				System.out.println(getStringForLoopId(loopId) + " ---> "+TimeKeeper.getInstance().getLoopIdToCurrentAverage().get(loopId));			
+			}
 		}
 		System.out.println("=========================================");
 		System.out.println("TUPLE CPU EXECUTION DELAY");

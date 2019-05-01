@@ -95,6 +95,19 @@ public class FogDevice extends PowerDatacenter {
 	
 	protected Map<String, Map<String, Integer>> moduleInstanceCount;
 	
+	/**
+	 * Creates a fog device
+	 * @param name Name
+	 * @param characteristics Characteristics
+	 * @param vmAllocationPolicy VmAllocationPolicy
+	 * @param storageList StorageList
+	 * @param schedulingInterval SchedulingInterval
+	 * @param uplinkBandwidth upLinkBandwidth
+	 * @param downlinkBandwidth DownLinkBandwidth
+	 * @param uplinkLatency UpLinkLatency
+	 * @param ratePerMips RatePerMips
+	 * @return
+	 */
 	public FogDevice(
 			String name, 
 			FogDeviceCharacteristics characteristics,
@@ -148,6 +161,9 @@ public class FogDevice extends PowerDatacenter {
 		setChildToLatencyMap(new HashMap<Integer, Double>());
 	}
 
+	/**
+	 * this constructor does not use ratePerMips but assigns these values from config file
+	 */
 	public FogDevice(
 			String name, long mips, int ram, 
 			double uplinkBandwidth, double downlinkBandwidth, double ratePerMips, PowerModel powerModel) throws Exception {
@@ -790,7 +806,7 @@ public class FogDevice extends PowerDatacenter {
 	
 	protected void sendUpFreeLink(Tuple tuple){
 		//added by Irfan
-		System.out.println("Tuple type:"+tuple.getTupleType()+"\tCloudletFileSize of tuple:"+tuple.getCloudletFileSize()+"\tUpLinkBandWidth of Device:"+getUplinkBandwidth());
+		//System.out.println("Tuple type:"+tuple.getTupleType()+"\tCloudletFileSize of tuple:"+tuple.getCloudletFileSize()+"\tUpLinkBandWidth of Device:"+getUplinkBandwidth());
 		
 		double networkDelay = tuple.getCloudletFileSize()/getUplinkBandwidth();
 		setNorthLinkBusy(true);

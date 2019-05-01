@@ -45,7 +45,7 @@ public class ModuleMapping {
 	 * created by Irfan
 	 */
 	public void displayModuleMapping() {
-		System.out.println("Values of Module Mapping are:*********************************");
+		System.out.println("**********Values of Module Mapping are:*********************************");
 		for(Map.Entry<String, List<String>> entry:moduleMapping.entrySet()) {
 			System.out.println(entry.getKey()+" --- "+entry.getValue());
 		}
